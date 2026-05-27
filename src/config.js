@@ -1,56 +1,59 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import dotenv from 'dotenv';
 
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-function loadEnv() {
-  const envPath = path.join(PROJECT_ROOT, '.env');
-  if (!fs.existsSync(envPath)) {
-    return;
+/*
+ * Read the JSON config file and report config-specific parse or missing
+ * file failures instead of exposing lower-level filesystem errors.
+ */
+function loadJsonConfig() {
+  const configPath = path.join(PROJECT_ROOT, 'config.json');
+  try {
+    return JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      throw new Error('Missing config file: config.json');
+    }
+    if (error instanceof SyntaxError) {
+      throw new Error(`Invalid JSON in config.json: ${error.message}`);
+    }
+    throw error;
   }
-
-  const lines = fs.readFileSync(envPath, 'utf8')
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line && !line.startsWith('#'));
-  const firstLine = lines[0];
-  if (firstLine && !firstLine.includes('=') && !process.env.DISCORD_TOKEN) {
-    process.env.DISCORD_TOKEN = firstLine;
-  }
-
-  dotenv.config({ path: envPath });
 }
 
-function requireEnv(name) {
-  const value = process.env[name]?.trim();
+function requireString(config, name, source) {
+  const raw = config[name];
+  const value = typeof raw === 'string' ? raw.trim() : '';
   if (!value) {
-    throw new Error(`Missing required environment value: ${name}`);
+    throw new Error(`Missing required value ${name} in ${source}`);
   }
   return value;
 }
 
-function optionalIntEnv(name, fallback) {
-  const raw = process.env[name]?.trim();
-  if (!raw) {
+function optionalPositiveInt(config, name, fallback, source) {
+  const raw = config[name];
+  if (raw === undefined || raw === null || raw === '') {
     return fallback;
   }
-  const parsed = Number.parseInt(raw, 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    throw new Error(`${name} must be a positive integer`);
+  if (!Number.isInteger(raw) || raw <= 0) {
+    throw new Error(`${name} in ${source} must be a positive integer`);
   }
-  return parsed;
+  return raw;
 }
 
-function loadServers() {
-  const configPath = path.join(PROJECT_ROOT, 'config', 'servers.json');
-  const parsed = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-  if (!Array.isArray(parsed.servers) || parsed.servers.length === 0) {
-    throw new Error('config/servers.json must contain at least one server');
+/*
+ * Normalize configured Minecraft servers into the fields the watcher and
+ * tmux integration need, deriving conventional log paths and tmux session
+ * names when they are not provided explicitly.
+ */
+function loadServers(config) {
+  if (!Array.isArray(config.servers) || config.servers.length === 0) {
+    throw new Error('config.json must contain at least one server');
   }
 
-  return parsed.servers.map((server) => {
+  return config.servers.map((server) => {
     if (!server.name || !server.directory) {
       throw new Error('Each server needs name and directory fields');
     }
@@ -66,20 +69,20 @@ function loadServers() {
 }
 
 export function loadConfig() {
-  loadEnv();
+  const config = loadJsonConfig();
 
-  const discordToken = requireEnv('DISCORD_TOKEN');
-  const discordUserId = requireEnv('DISCORD_USER_ID');
+  const discordToken = requireString(config, 'discordToken', 'config.json');
+  const discordUserId = requireString(config, 'discordUserId', 'config.json');
   if (!/^\d{15,25}$/.test(discordUserId)) {
-    throw new Error('DISCORD_USER_ID must be your numeric Discord user ID, not your username');
+    throw new Error('discordUserId in config.json must be your numeric Discord user ID, not your username');
   }
 
   return {
     projectRoot: PROJECT_ROOT,
     discordToken,
     discordUserId,
-    pollMs: optionalIntEnv('POLL_MS', 1000),
-    cooldownMs: optionalIntEnv('COOLDOWN_SECONDS', 60) * 1000,
-    servers: loadServers(),
+    pollMs: optionalPositiveInt(config, 'pollMs', 1000, 'config.json'),
+    cooldownMs: optionalPositiveInt(config, 'cooldownMs', 60000, 'config.json'),
+    servers: loadServers(config),
   };
 }

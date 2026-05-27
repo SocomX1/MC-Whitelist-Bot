@@ -50,6 +50,11 @@ function requestMessage(request) {
   ].join('\n');
 }
 
+/*
+ * Turn a matched whitelist denial into one actionable Discord DM, while
+ * respecting ignored identities and a process-local cooldown to avoid
+ * repeated alerts for the same player/IP pair.
+ */
 async function sendAlert(event) {
   if (state.isIgnored(event.server.name, event.username, event.ip)) {
     return;
@@ -91,6 +96,11 @@ async function editRequestMessage(interaction, request, content) {
   });
 }
 
+/*
+ * Handle the Allow/Ignore buttons on request DMs. The request status is
+ * checked again here because Discord interactions can arrive after another
+ * action has already handled the same request.
+ */
 client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isButton()) {
     return;

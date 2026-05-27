@@ -12,6 +12,10 @@ export class StateStore {
     };
   }
 
+  /*
+   * Initialize the data directory and merge any persisted state over the
+   * in-memory defaults, allowing new top-level state buckets to get defaults.
+   */
   load() {
     fs.mkdirSync(this.dataDir, { recursive: true });
     if (!fs.existsSync(this.statePath)) {
@@ -25,6 +29,10 @@ export class StateStore {
     };
   }
 
+  /*
+   * Write through a temporary file so a crash during persistence does not
+   * leave state.json partially written.
+   */
   save() {
     const tmpPath = `${this.statePath}.tmp`;
     fs.writeFileSync(tmpPath, JSON.stringify(this.state, null, 2));

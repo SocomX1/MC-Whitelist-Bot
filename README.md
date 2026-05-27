@@ -38,27 +38,14 @@ npm run check
 
 ## Configuration
 
-`.env` supports either a raw bot token on the first line or named values:
-
-```sh
-DISCORD_TOKEN=your_bot_token
-DISCORD_USER_ID=your_numeric_discord_user_id
-COOLDOWN_SECONDS=60
-POLL_MS=1000
-```
-
-`DISCORD_USER_ID` must be the numeric account ID, not a username.
-
-To get it in Discord:
-
-1. User Settings -> Advanced -> enable Developer Mode.
-2. Right-click your user/profile.
-3. Copy User ID.
-
-Servers are configured in `config/servers.json`:
+Bot settings are configured in `config.json` with Discord credentials first, bot timing values next, and server definitions last:
 
 ```json
 {
+  "discordToken": "your_bot_token",
+  "discordUserId": "your_numeric_discord_user_id",
+  "pollMs": 1000,
+  "cooldownMs": 60000,
   "servers": [
     {
       "name": "atm11",
@@ -72,7 +59,15 @@ Servers are configured in `config/servers.json`:
 }
 ```
 
-Defaults:
+`discordUserId` must be the numeric account ID, not a username. To get it in Discord:
+
+1. User Settings -> Advanced -> enable Developer Mode.
+2. Right-click your user/profile.
+3. Copy User ID.
+
+Replace the placeholder values locally before starting the bot. If you fork/clone this repo, DO NOT ACCIDENTALLY COMMIT YOUR BOT TOKEN.
+
+### Default Server Config Values
 
 - `logPath`: `<directory>/logs/latest.log`
 - `tmuxSession`: basename of `directory`

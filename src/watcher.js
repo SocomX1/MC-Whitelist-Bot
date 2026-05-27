@@ -13,6 +13,10 @@ export class LogWatcher {
     this.running = false;
   }
 
+  /*
+   * Begin watching from the current end of the log so old whitelist denials
+   * do not produce alerts when the bot starts.
+   */
   async start() {
     await this.seekToEnd();
     this.timer = setInterval(() => {
@@ -46,6 +50,11 @@ export class LogWatcher {
     }
   }
 
+  /*
+   * Poll for appended bytes, resetting to the beginning when the log file is
+   * rotated or truncated. The running flag prevents overlapping reads when a
+   * slow filesystem operation lasts longer than the polling interval.
+   */
   async tick() {
     if (this.running) {
       return;
@@ -83,6 +92,10 @@ export class LogWatcher {
     }
   }
 
+  /*
+   * Extract whitelist-denial events from newly read log text and forward only
+   * the fields needed by the Discord alert flow.
+   */
   processChunk(chunk) {
     for (const line of chunk.split(/\r?\n/)) {
       const match = line.match(WHITELIST_RE);

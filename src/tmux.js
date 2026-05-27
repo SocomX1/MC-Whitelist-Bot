@@ -2,6 +2,11 @@ import { spawn } from 'node:child_process';
 
 const USERNAME_RE = /^[A-Za-z0-9_]{3,16}$/;
 
+/*
+ * Execute tmux directly without a shell so session names and generated
+ * commands are passed as arguments rather than interpolated into a command
+ * string.
+ */
 function runTmux(args) {
   return new Promise((resolve, reject) => {
     const child = spawn('tmux', args, {
@@ -28,6 +33,10 @@ function runTmux(args) {
   });
 }
 
+/*
+ * Send Minecraft's whitelist command to the configured tmux session after
+ * validating the username matches the game's allowed account-name shape.
+ */
 export async function addToWhitelist(server, username) {
   if (!USERNAME_RE.test(username)) {
     throw new Error(`Refusing unsafe Minecraft username: ${username}`);

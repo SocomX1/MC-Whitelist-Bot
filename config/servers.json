@@ -1,8 +1,0 @@
-{
-  "servers": [
-    {
-      "name": "atm11",
-      "directory": "/home/opc/atm11"
-    }
-  ]
-}
