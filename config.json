@@ -1,7 +1,8 @@
 {
   "discordToken": "your_bot_token",
   "discordUserIds": [
-    "your_numeric_discord_user_id"
+    "your_numeric_discord_user_id",
+    "another_numeric_discord_user_id"
   ],
   "pollMs": 1000,
   "cooldownMs": 60000,
