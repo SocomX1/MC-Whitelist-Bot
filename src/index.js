@@ -51,6 +51,11 @@ function requestMessage(request) {
   ].join('\n');
 }
 
+function startupMessage() {
+  const serverList = config.servers.map((server) => `- ${server.name}`).join('\n');
+  return `MC Whitelist Bot started. Watching ${config.servers.length} server(s):\n${serverList}`;
+}
+
 function requestAlertMessages(request) {
   if (Array.isArray(request.alertMessages)) {
     return request.alertMessages;
@@ -235,7 +240,7 @@ client.once(Events.ClientReady, async () => {
     const results = await Promise.allSettled(
       config.discordUserIds.map(async (userId) => {
         const user = await client.users.fetch(userId);
-        await user.send(`MC Whitelist Bot started. Watching ${config.servers.length} server(s).`);
+        await user.send(startupMessage());
       }),
     );
     results.forEach((result, index) => {
