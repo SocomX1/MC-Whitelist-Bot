@@ -316,4 +316,4 @@ process.on('SIGTERM', () => {
   shutdown('SIGTERM');
 });
 
-await client.login(config.discordToken);
+await client.login(config.botToken);

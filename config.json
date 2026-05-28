@@ -1,5 +1,5 @@
 {
-  "discordToken": "your_bot_token",
+  "botToken": "your_bot_token",
   "discordUserIds": [
     "your_numeric_discord_user_id",
     "another_numeric_discord_user_id"

@@ -92,12 +92,12 @@ function loadServers(config) {
 export function loadConfig() {
   const config = loadJsonConfig();
 
-  const discordToken = requireString(config, 'discordToken', 'config.json');
+  const botToken = requireString(config, 'botToken', 'config.json');
   const discordUserIds = requireDiscordUserIds(config);
 
   return {
     projectRoot: PROJECT_ROOT,
-    discordToken,
+    botToken,
     discordUserIds,
     pollMs: optionalPositiveInt(config, 'pollMs', 1000, 'config.json'),
     cooldownMs: optionalPositiveInt(config, 'cooldownMs', 60000, 'config.json'),
