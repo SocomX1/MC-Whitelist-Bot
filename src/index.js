@@ -284,7 +284,15 @@ client.on(Events.Error, (error) => {
  * Gracefully handle SIGINT/SIGTERM, and notify subscribers that the bot has stopped.
  * Note that this logic can not handle SIGKILL.
  */
+let shuttingDown = false;
+
 async function shutdown(signal) {
+  // Idempotency guard to prevent duplicate shutdown handler invocations
+  if (shuttingDown) {
+    return;
+  }
+  shuttingDown = true;
+
   console.log(`Received ${signal}, exiting.`);
 
   try {
