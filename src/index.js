@@ -280,16 +280,32 @@ client.on(Events.Error, (error) => {
   console.error('Discord client error:', error.message);
 });
 
+/*
+ * Gracefully handle SIGINT/SIGTERM, and notify subscribers that the bot has stopped.
+ * Note that this logic can not handle SIGKILL.
+ */
+async function shutdown(signal) {
+  console.log(`Received ${signal}, exiting.`);
+
+  try {
+    await Promise.allSettled(
+      config.discordUserIds.map(async (userId) => {
+        const user = await client.users.fetch(userId);
+        await user.send(`MC Whitelist Bot stopped. Received ${signal}.`);
+      }),
+    );
+  } finally {
+    client.destroy();
+    process.exit(0);
+  }
+}
+
 process.on('SIGINT', () => {
-  console.log('Received SIGINT, exiting.');
-  client.destroy();
-  process.exit(0);
+  shutdown('SIGINT');
 });
 
 process.on('SIGTERM', () => {
-  console.log('Received SIGTERM, exiting.');
-  client.destroy();
-  process.exit(0);
+  shutdown('SIGTERM');
 });
 
 await client.login(config.discordToken);
