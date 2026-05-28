@@ -17,6 +17,7 @@ const state = new StateStore(config.projectRoot);
 state.load();
 
 const serversByName = new Map(config.servers.map((server) => [server.name, server]));
+const discordUserIds = new Set(config.discordUserIds);
 const cooldowns = new Map();
 
 const client = new Client({
@@ -50,6 +51,63 @@ function requestMessage(request) {
   ].join('\n');
 }
 
+function requestAlertMessages(request) {
+  if (Array.isArray(request.alertMessages)) {
+    return request.alertMessages;
+  }
+
+  if (request.channelId && request.messageId) {
+    return [{ channelId: request.channelId, messageId: request.messageId }];
+  }
+
+  return [];
+}
+
+async function sendRequestMessage(userId, request) {
+  const user = await client.users.fetch(userId);
+  const message = await user.send({
+    content: requestMessage(request),
+    components: requestComponents(request),
+  });
+
+  return {
+    userId,
+    channelId: message.channelId,
+    messageId: message.id,
+  };
+}
+
+async function editStoredRequestMessage(alertMessage, request, content, disabled = true) {
+  const channel = await client.channels.fetch(alertMessage.channelId);
+  if (!channel?.messages) {
+    throw new Error(`Unable to fetch DM channel ${alertMessage.channelId}`);
+  }
+
+  const message = await channel.messages.fetch(alertMessage.messageId);
+  await message.edit({
+    content,
+    components: requestComponents(request, disabled),
+  });
+}
+
+/*
+ * Keep every recipient's DM in sync after one authorized user handles the
+ * request. Missing/deleted DMs are logged and do not block the chosen action.
+ */
+async function editAllRequestMessages(request, content, disabled = true) {
+  const alertMessages = requestAlertMessages(request);
+  const results = await Promise.allSettled(
+    alertMessages.map((alertMessage) => editStoredRequestMessage(alertMessage, request, content, disabled)),
+  );
+
+  results.forEach((result, index) => {
+    if (result.status === 'rejected') {
+      const alertMessage = alertMessages[index];
+      console.error(`[${request.serverName}] failed to update request DM ${alertMessage?.messageId}:`, result.reason.message);
+    }
+  });
+}
+
 /*
  * Turn a matched whitelist denial into one actionable Discord DM, while
  * respecting ignored identities and a process-local cooldown to avoid
@@ -75,25 +133,29 @@ async function sendAlert(event) {
     line: event.line,
   });
 
-  const user = await client.users.fetch(config.discordUserId);
-  const message = await user.send({
-    content: requestMessage(request),
-    components: requestComponents(request),
+  const results = await Promise.allSettled(
+    config.discordUserIds.map((userId) => sendRequestMessage(userId, request)),
+  );
+  const alertMessages = results
+    .filter((result) => result.status === 'fulfilled')
+    .map((result) => result.value);
+
+  results.forEach((result, index) => {
+    if (result.status === 'rejected') {
+      console.error(`[${event.server.name}] alert DM to ${config.discordUserIds[index]} failed:`, result.reason.message);
+    }
   });
+
+  if (alertMessages.length === 0) {
+    console.error(`[${event.server.name}] alert failed for every configured Discord user`);
+    return;
+  }
 
   state.updateRequest(request.id, {
-    channelId: message.channelId,
-    messageId: message.id,
+    alertMessages,
   });
 
-  console.log(`[${event.server.name}] alerted for ${event.username} from ${event.ip}`);
-}
-
-async function editRequestMessage(interaction, request, content) {
-  await interaction.update({
-    content,
-    components: requestComponents(request, true),
-  });
+  console.log(`[${event.server.name}] alerted ${alertMessages.length} user(s) for ${event.username} from ${event.ip}`);
 }
 
 /*
@@ -111,7 +173,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     return;
   }
 
-  if (interaction.user.id !== config.discordUserId) {
+  if (!discordUserIds.has(interaction.user.id)) {
     await interaction.reply({
       content: 'You are not authorized to manage this whitelist request.',
       ephemeral: true,
@@ -137,13 +199,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
   }
 
   if (action === 'ignore') {
+    await interaction.deferUpdate();
     state.addIgnored(request.serverName, request.username, request.ip);
     const updated = state.updateRequest(request.id, {
       status: 'ignored',
       handledBy: interaction.user.id,
       handledAt: new Date().toISOString(),
     });
-    await editRequestMessage(interaction, updated, `${requestMessage(updated)}\n\nIgnored. Future alerts for this server/player/IP are muted.`);
+    await editAllRequestMessages(updated, `${requestMessage(updated)}\n\nIgnored. Future alerts for this server/player/IP are muted.`);
     return;
   }
 
@@ -155,10 +218,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       handledBy: interaction.user.id,
       handledAt: new Date().toISOString(),
     });
-    await interaction.editReply({
-      content: `${requestMessage(updated)}\n\nAllowed. Sent \`whitelist add ${request.username}\` to tmux session \`${server.tmuxSession}\`.`,
-      components: requestComponents(updated, true),
-    });
+    await editAllRequestMessages(updated, `${requestMessage(updated)}\n\nAllowed. Sent \`whitelist add ${request.username}\` to tmux session \`${server.tmuxSession}\`.`);
   } catch (error) {
     console.error(`[${request.serverName}] allow failed:`, error.message);
     await interaction.editReply({
@@ -172,8 +232,17 @@ client.once(Events.ClientReady, async () => {
   console.log(`Logged in as ${client.user.tag}`);
 
   try {
-    const user = await client.users.fetch(config.discordUserId);
-    await user.send(`MC Whitelist Bot started. Watching ${config.servers.length} server(s).`);
+    const results = await Promise.allSettled(
+      config.discordUserIds.map(async (userId) => {
+        const user = await client.users.fetch(userId);
+        await user.send(`MC Whitelist Bot started. Watching ${config.servers.length} server(s).`);
+      }),
+    );
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        console.error(`Startup DM to ${config.discordUserIds[index]} failed:`, result.reason.message);
+      }
+    });
   } catch (error) {
     console.error('Startup DM failed:', error.message);
   }

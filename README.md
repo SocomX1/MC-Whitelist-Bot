@@ -27,6 +27,7 @@ npm run check
 - Alerts have a global 60-second cooldown per username and IP address.
 - `Allow` sends `whitelist add <username>` to the configured tmux session.
 - `Ignore` suppresses future alerts for that server, player, and IP address.
+- Any configured Discord user can handle a request, and the bot updates the request buttons in every recipient's DM.
 - State is stored in `data/state.json`.
 
 ## Requirements
@@ -43,7 +44,10 @@ Bot settings and credentials are configured in `config.json`:
 ```json
 {
   "discordToken": "your_bot_token",
-  "discordUserId": "your_numeric_discord_user_id",
+  "discordUserIds": [
+    "your_numeric_discord_user_id",
+    "another_numeric_discord_user_id"
+  ],
   "pollMs": 1000,
   "cooldownMs": 60000,
   "servers": [
@@ -59,7 +63,7 @@ Bot settings and credentials are configured in `config.json`:
 }
 ```
 
-`discordUserId` must be the numeric account ID, not a username. To get it in Discord:
+Each `discordUserIds` entry must be a numeric account ID, not a username. To get it in Discord:
 
 1. User Settings -> Advanced -> enable Developer Mode.
 2. Right-click your user/profile.

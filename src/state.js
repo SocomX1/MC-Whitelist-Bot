@@ -70,6 +70,7 @@ export class StateStore {
       ip,
       line,
       status: 'pending',
+      alertMessages: [],
       createdAt: new Date().toISOString(),
     };
     this.save();

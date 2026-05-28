@@ -32,6 +32,27 @@ function requireString(config, name, source) {
   return value;
 }
 
+function requireDiscordUserIds(config) {
+  if (!Array.isArray(config.discordUserIds) || config.discordUserIds.length === 0) {
+    throw new Error('discordUserIds in config.json must contain at least one Discord user ID');
+  }
+
+  const userIds = config.discordUserIds.map((userId) => {
+    if (typeof userId !== 'string') {
+      throw new Error('discordUserIds in config.json must contain only string values');
+    }
+    return userId.trim();
+  });
+
+  for (const userId of userIds) {
+    if (!/^\d{15,25}$/.test(userId)) {
+      throw new Error('discordUserIds in config.json must contain numeric Discord user IDs, not usernames');
+    }
+  }
+
+  return [...new Set(userIds)];
+}
+
 function optionalPositiveInt(config, name, fallback, source) {
   const raw = config[name];
   if (raw === undefined || raw === null || raw === '') {
@@ -72,15 +93,12 @@ export function loadConfig() {
   const config = loadJsonConfig();
 
   const discordToken = requireString(config, 'discordToken', 'config.json');
-  const discordUserId = requireString(config, 'discordUserId', 'config.json');
-  if (!/^\d{15,25}$/.test(discordUserId)) {
-    throw new Error('discordUserId in config.json must be your numeric Discord user ID, not your username');
-  }
+  const discordUserIds = requireDiscordUserIds(config);
 
   return {
     projectRoot: PROJECT_ROOT,
     discordToken,
-    discordUserId,
+    discordUserIds,
     pollMs: optionalPositiveInt(config, 'pollMs', 1000, 'config.json'),
     cooldownMs: optionalPositiveInt(config, 'cooldownMs', 60000, 'config.json'),
     servers: loadServers(config),
