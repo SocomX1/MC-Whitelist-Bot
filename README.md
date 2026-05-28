@@ -9,12 +9,12 @@ The bot watches Minecraft `logs/latest.log` files for failed whitelist joins, se
 
 ```sh
 cd ~/MC-Whitelist-Bot
+tmux new -s mc-whitelist-bot
 npm install
 npm start
 ```
-
+Connect to the bot's tmux session with `tmux attach -t mc-whitelist-bot`. Use `CTRL+C` to terminate.
 I might look into making the bot run as a systemd service in the future.
-Use `CTRL + C` to terminate the bot.
 
 When making changes, validate JavaScript syntax via:
 
@@ -38,7 +38,7 @@ npm run check
 
 ## Configuration
 
-Bot settings are configured in `config.json` with Discord credentials first, bot timing values next, and server definitions last:
+Bot settings and credentials are configured in `config.json`:
 
 ```json
 {
