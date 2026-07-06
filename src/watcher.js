@@ -1,6 +1,10 @@
 import fs from 'node:fs/promises';
 
-const WHITELIST_RE = /Disconnecting ([A-Za-z0-9_]{3,16}) \((?:\/)?([^):]+):\d+\): You are not white-listed on this server!/;
+const USERNAME_RE = '[A-Za-z0-9_]{3,16}';
+const WHITELIST_RE = new RegExp(
+  `Disconnecting (?:(${USERNAME_RE})|com\\.mojang\\.authlib\\.GameProfile@[^\\[]+\\[[^\\]]*name=(${USERNAME_RE})[^\\]]*\\]) ` +
+    '\\((?:\\/)?([^):]+):\\d+\\): You are not white-listed on this server!',
+);
 
 export class LogWatcher {
   constructor({ server, pollMs, onMatch }) {
@@ -104,8 +108,8 @@ export class LogWatcher {
       }
       this.onMatch({
         server: this.server,
-        username: match[1],
-        ip: match[2],
+        username: match[1] || match[2],
+        ip: match[3],
         line,
       });
     }
