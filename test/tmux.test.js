@@ -48,7 +48,8 @@ test('isolated tmux: detached launch, exact lookup, literal commands and gracefu
 
   await launchServer(server, null);
   const retained = await inspectServer(server);
-  execFileSync('tmux', ['set-option', '-p', '-t', retained.id, 'remain-on-exit', 'on']);
+  // Window scope also supports older tmux releases without set-option -p.
+  execFileSync('tmux', ['set-window-option', '-t', retained.id, 'remain-on-exit', 'on']);
   await sendConsole(retained, 'stop');
   for (let attempt = 0; attempt < 50 && !(await inspectServer(server)).dead; attempt++) await delay(20);
   assert.equal((await inspectServer(server)).dead, true);
