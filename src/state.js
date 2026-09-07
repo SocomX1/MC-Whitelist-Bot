@@ -9,6 +9,7 @@ export class StateStore {
     this.state = {
       ignored: {},
       requests: {},
+      restarts: {},
     };
   }
 

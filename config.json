@@ -9,7 +9,8 @@
   "servers": [
     {
       "name": "servername",
-      "directory": "/fully/qualified/server/path"
+      "directory": "/fully/qualified/server/path",
+      "autoRestartInterval": 0
     }
   ]
 }

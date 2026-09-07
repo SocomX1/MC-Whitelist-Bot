@@ -11,10 +11,13 @@ import { loadConfig } from './config.js';
 import { StateStore } from './state.js';
 import { addToWhitelist } from './tmux.js';
 import { LogWatcher } from './watcher.js';
+import { RestartScheduler } from './restart.js';
 
 const config = loadConfig();
 const state = new StateStore(config.projectRoot);
 state.load();
+const restartScheduler = new RestartScheduler({ servers: config.servers, state });
+const watchers = [];
 
 const serversByName = new Map(config.servers.map((server) => [server.name, server]));
 const discordUserIds = new Set(config.discordUserIds);
@@ -263,6 +266,7 @@ client.once(Events.ClientReady, async () => {
       },
     });
     await watcher.start();
+    watchers.push(watcher);
   }
 
   if (process.env.TEST_ALERT === '1') {
@@ -292,6 +296,8 @@ async function shutdown(signal) {
     return;
   }
   shuttingDown = true;
+  restartScheduler.stop();
+  for (const watcher of watchers) watcher.stop();
 
   console.log(`Received ${signal}, exiting.`);
 
@@ -316,4 +322,12 @@ process.on('SIGTERM', () => {
   shutdown('SIGTERM');
 });
 
-await client.login(config.botToken);
+// Scheduling starts at bot activation and does not depend on Discord connectivity.
+restartScheduler.start();
+try {
+  await client.login(config.botToken);
+} catch (error) {
+  restartScheduler.stop();
+  client.destroy();
+  throw error;
+}

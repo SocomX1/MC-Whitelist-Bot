@@ -69,22 +69,36 @@ function optionalPositiveInt(config, name, fallback, source) {
  * tmux integration need, deriving conventional log paths and tmux session
  * names when they are not provided explicitly.
  */
-function loadServers(config) {
+export function loadServers(config) {
   if (!Array.isArray(config.servers) || config.servers.length === 0) {
     throw new Error('config.json must contain at least one server');
   }
 
+  const sessions = new Set();
   return config.servers.map((server) => {
     if (!server.name || !server.directory) {
       throw new Error('Each server needs name and directory fields');
     }
 
     const directory = path.resolve(server.directory);
+    const autoRestartInterval = server.autoRestartInterval ?? 0;
+    if (typeof autoRestartInterval !== 'number' || !Number.isFinite(autoRestartInterval) ||
+        autoRestartInterval < 0 || !Number.isSafeInteger(Math.round(autoRestartInterval * 3600000)) ||
+        (autoRestartInterval > 0 && autoRestartInterval * 3600000 < 1000)) {
+      throw new Error(`autoRestartInterval for ${server.name} must be 0 or a positive number of hours (at least one second)`);
+    }
+    const tmuxSession = server.tmuxSession || path.basename(directory);
+    if (autoRestartInterval > 0) {
+      if (sessions.has(tmuxSession)) throw new Error(`Duplicate auto-restart tmux session: ${tmuxSession}`);
+      sessions.add(tmuxSession);
+    }
     return {
       name: server.name,
       directory,
       logPath: server.logPath ? path.resolve(server.logPath) : path.join(directory, 'logs', 'latest.log'),
-      tmuxSession: server.tmuxSession || path.basename(directory),
+      tmuxSession,
+      autoRestartInterval,
+      restartTimeoutSeconds: optionalPositiveInt(server, 'restartTimeoutSeconds', 600, server.name),
     };
   });
 }
