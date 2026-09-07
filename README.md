@@ -106,7 +106,7 @@ Add `autoRestartInterval` to each server you want to restart automatically:
 ```
 
 - `autoRestartInterval` is a number of hours. Fractions are supported (minimum one second); omit it or set it to `0` to disable restarts.
-- `restartTimeoutSeconds` is the maximum total time allowed for graceful shutdown and startup, including fallback launch and the 30-second process stability check. It defaults to 900 seconds; increase it for slow modpacks.
+- `restartTimeoutSeconds` is the maximum total time allowed for graceful shutdown and startup, including fallback launch and the 30-second process stability check. It defaults to 600 seconds; increase it for slow modpacks.
 - The first deadline is bot activation time plus the interval, not existing Minecraft uptime. Deadlines and pending operations are saved in `data/state.json` and survive bot restarts.
 - After a confirmed process restart, the next deadline is one interval from the replacement Java process's actual start time (not the end of the stability check). Manual Minecraft restarts do not reset the schedule.
 - Changing the interval resets the deadline on the next bot startup; an already pending restart is still monitored. Disabling removes its schedule and stops monitoring it, without undoing a previously sent `stop`.
